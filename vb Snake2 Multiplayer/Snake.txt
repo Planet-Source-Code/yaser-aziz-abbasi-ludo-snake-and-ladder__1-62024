@@ -1,0 +1,399 @@
+Option Explicit
+Public intTotPlayers As Integer
+Dim strPlayerName(1 To 4) As String
+Dim intDiceResult(1 To 3) As Integer
+Dim intRand As Integer
+Dim intPlayerTurn As Integer
+Dim intDiceTurn As Integer
+Dim intTemp As Integer
+Dim intCount As Integer
+Dim intDiceTurnTemp As Integer
+Dim intPlayerTurnTemp As Integer
+Dim intPicBoxNo(1 To 4) As Integer
+Dim strDirection As String
+Dim intLeft As Integer
+Dim intRight As Integer
+Dim intUp As Integer
+Dim intDown As Integer
+Dim blnSixer(1 To 4) As Boolean
+Dim blnMulti As Boolean
+Dim intMultTurn As Integer
+Dim strData As String
+Dim blnMyTurn As Boolean
+
+Private Sub cmdDiceStart_Click()
+cmdRandom.Enabled = True
+lblComments = ""
+If intPlayerTurnTemp <> intPlayerTurn Then
+    lblDiceResult(1) = ""
+    lblDiceResult(2) = ""
+    lblDiceResult(3) = ""
+End If
+cmdDiceStart.Visible = False
+cmdStopDice.Visible = True
+cmdStopDice.SetFocus
+Timer1.Enabled = True
+blnMyTurn = True
+End Sub
+
+Private Sub cmdRandom_Click()
+If cmdRandom.Caption = "Computer Control" Then
+cmdRandom.Caption = "Take Control"
+Timer5.Enabled = True
+Else
+    cmdRandom.Caption = "Computer Control"
+    Timer5.Enabled = False
+End If
+End Sub
+
+Private Sub cmdSend_Click()
+If txtMessage.Text = "" Then
+    MsgBox "Please Enter a Message", vbInformation, "Enter Message"
+Else
+    Winsock1.SendData strPlayerName(1) & ": " & txtMessage.Text
+    lstMessages.AddItem strPlayerName(1) & ": " & txtMessage.Text
+End If
+End Sub
+
+Private Sub cmdStartGame_Click()
+Winsock1.SendData "GSTART"
+End Sub
+
+Private Sub cmdStopDice_Click()
+If intPlayerTurn = 1 Then
+    Winsock1.SendData "INTRAN" & intRand
+    'blnMyTurn = False
+End If
+cmdDiceStart.Visible = True
+cmdDiceStart.Enabled = False
+cmdStopDice.Visible = False
+Timer1.Enabled = False
+lblDiceResult(intDiceTurn) = intRand
+intDiceResult(intDiceTurn) = intRand
+intDiceTurnTemp = intDiceTurn
+intPlayerTurnTemp = intPlayerTurn
+If blnSixer(intPlayerTurn) Then
+    If intDiceResult(intDiceTurn) + intPicBoxNo(intPlayerTurnTemp) <= 100 Then
+        DiceMove
+    Else
+        intDiceTurn = 3
+        lblComments.Caption = strPlayerName(intPlayerTurn) & ": Not moved dice going over hundered"
+        If intPlayerTurn = 2 Then ' Need to check this may be put in the timer
+            cmdDiceStart.Enabled = True
+            cmdDiceStart.SetFocus
+        End If
+    End If
+Else
+    lblComments.Caption = strPlayerName(intPlayerTurn) & ": Not moved you didn't get a sixer yet"
+    If intPlayerTurn = 2 Then ' Need to check this may be put in the timer
+        cmdDiceStart.Enabled = True
+        cmdDiceStart.SetFocus
+    End If
+End If
+If intDiceResult(intDiceTurn) = 6 And blnSixer(intPlayerTurn) = False Then
+    blnSixer(intPlayerTurn) = True
+    'intDiceResult(intDiceTurn) = 0
+End If
+If Val(lblDiceResult(intDiceTurn).Caption) < 6 Or intDiceTurn = 3 Then
+    Timer3.Enabled = False
+    If intPlayerTurn = intTotPlayers Then
+        intPlayerTurn = 1
+        intDiceTurn = 1
+    Else
+        intPlayerTurn = intPlayerTurn + 1
+        intDiceTurn = 1
+    End If
+    cmdPlayerColor(intPlayerTurnTemp).Visible = True
+    lblPlayerTurn.Caption = strPlayerName(intPlayerTurn) & "'s Turn"
+    Timer3.Enabled = True
+Else
+    intDiceTurn = intDiceTurn + 1
+End If
+End Sub
+
+Private Sub Form_Load()
+intTotPlayers = 2
+strPlayerName(1) = InputBox("Enter you name")
+strPlayerName(2) = "Player2"
+End Sub
+
+Private Sub Form_Unload(Cancel As Integer)
+Winsock1.Close
+End
+End Sub
+
+Private Sub mnuExit_Click()
+Unload Me
+End Sub
+
+Private Sub Timer1_Timer()
+intRand = Int(Rnd * 6) + 1
+imgDice(intTemp).Visible = False
+intTemp = intRand
+imgDice(intRand).Visible = True
+lblDiceResult(intDiceTurn) = intRand
+End Sub
+
+Private Sub DiceMove()
+intCount = 1
+Timer2.Enabled = True
+End Sub
+
+Private Sub Timer2_Timer()
+intPicBoxNo(intPlayerTurnTemp) = intPicBoxNo(intPlayerTurnTemp) + 1
+Select Case intPicBoxNo(intPlayerTurnTemp)
+    Case 11, 21, 31, 41, 51, 61, 71, 81, 91
+        picBox(intPlayerTurnTemp).Top = picBox(intPlayerTurnTemp).Top - 640
+    Case 0 To 10, 22 To 30, 42 To 50, 62 To 70, 82 To 90
+        picBox(intPlayerTurnTemp).Left = picBox(intPlayerTurnTemp).Left + 640
+    Case 12 To 20, 32 To 40, 52 To 60, 72 To 80, 92 To 100
+        picBox(intPlayerTurnTemp).Left = picBox(intPlayerTurnTemp).Left - 640
+End Select
+picBox(intPlayerTurnTemp).Cls
+If intPicBoxNo(intPlayerTurnTemp) < 10 Then
+    picBox(intPlayerTurnTemp).Print " " & intPicBoxNo(intPlayerTurnTemp)
+Else
+    picBox(intPlayerTurnTemp).Print "" & intPicBoxNo(intPlayerTurnTemp)
+End If
+If intCount = intDiceResult(intDiceTurnTemp) Then
+    Select Case intPicBoxNo(intPlayerTurnTemp)
+        Case 15, 32, 35, 38, 58, 65, 81, 90, 94, 98
+            Snake
+        Case 4, 8, 22, 25, 30, 44, 49, 60, 72, 85
+            Ladder
+        Case Else
+            If intPlayerTurn = 1 Then
+                cmdDiceStart.Enabled = True
+                cmdDiceStart.SetFocus
+            End If
+    End Select
+    If intPicBoxNo(intPlayerTurnTemp) = 100 Then
+        lblWinner.Caption = strPlayerName(intPlayerTurnTemp) & " Wins"
+        lblWinner.Visible = True
+        imgTrophy.Visible = True
+        Timer1.Enabled = False
+        cmdDiceStart.Enabled = False
+    End If
+    Timer2.Enabled = False
+End If
+intCount = intCount + 1
+End Sub
+
+Private Sub Timer3_Timer()
+If cmdPlayerColor(intPlayerTurn).Visible Then
+    cmdPlayerColor(intPlayerTurn).Visible = False
+Else
+    cmdPlayerColor(intPlayerTurn).Visible = True
+End If
+End Sub
+
+Private Sub Snake()
+Select Case intPicBoxNo(intPlayerTurnTemp)
+    Case 15
+        intDown = 1
+        intLeft = 1
+        intPicBoxNo(intPlayerTurnTemp) = 5
+    Case 32
+        intDown = 3
+        intPicBoxNo(intPlayerTurnTemp) = 9
+    Case 35
+        intDown = 2
+        intLeft = 3
+        intPicBoxNo(intPlayerTurnTemp) = 18
+    Case 38
+        intDown = 2
+        intLeft = 1
+        intPicBoxNo(intPlayerTurnTemp) = 19
+    Case 58
+        intDown = 1
+        intLeft = 2
+        intPicBoxNo(intPlayerTurnTemp) = 41
+    Case 65
+        intDown = 4
+        intRight = 1
+        intPicBoxNo(intPlayerTurnTemp) = 26
+    Case 81
+        intDown = 2
+        intRight = 2
+        intPicBoxNo(intPlayerTurnTemp) = 63
+    Case 90
+        intDown = 2
+        intLeft = 1
+        intPicBoxNo(intPlayerTurnTemp) = 69
+    Case 94
+        intDown = 6
+        intRight = 1
+        intPicBoxNo(intPlayerTurnTemp) = 33
+    Case 98
+        intDown = 3
+        intRight = 1
+        intPicBoxNo(intPlayerTurnTemp) = 64
+End Select
+lblComments.Caption = strPlayerName(intPlayerTurn) & ": Oops you just got bitten by a snake"
+picBox(intPlayerTurnTemp).Cls
+Timer4.Enabled = True
+End Sub
+Private Sub Ladder()
+Select Case intPicBoxNo(intPlayerTurnTemp)
+    Case 4
+        intUp = 2
+        intPicBoxNo(intPlayerTurnTemp) = 24
+    Case 8
+        intUp = 3
+        intLeft = 1
+        intPicBoxNo(intPlayerTurnTemp) = 34
+    Case 22
+        intUp = 2
+        intPicBoxNo(intPlayerTurnTemp) = 42
+    Case 25
+        intUp = 5
+        intRight = 3
+        intPicBoxNo(intPlayerTurnTemp) = 42
+    Case 30
+        intUp = 1
+        intPicBoxNo(intPlayerTurnTemp) = 31
+    Case 44
+        intUp = 3
+        intLeft = 1
+        intPicBoxNo(intPlayerTurnTemp) = 78
+    Case 49
+        intUp = 1
+        intLeft = 1
+        intPicBoxNo(intPlayerTurnTemp) = 53
+    Case 60
+        intUp = 1
+        intPicBoxNo(intPlayerTurnTemp) = 61
+    Case 72
+        intUp = 2
+        intLeft = 1
+        intPicBoxNo(intPlayerTurnTemp) = 93
+    Case 85
+        intUp = 1
+        intPicBoxNo(intPlayerTurnTemp) = 96
+End Select
+lblComments.Caption = strPlayerName(intPlayerTurn) & ": You just climbed a ladder "
+picBox(intPlayerTurnTemp).Cls
+Timer4.Enabled = True
+End Sub
+
+Private Sub Timer4_Timer()
+If intUp > 0 Then
+    intUp = intUp - 1
+    picBox(intPlayerTurnTemp).Top = picBox(intPlayerTurnTemp).Top - 640
+End If
+If intDown > 0 Then
+    intDown = intDown - 1
+    picBox(intPlayerTurnTemp).Top = picBox(intPlayerTurnTemp).Top + 640
+End If
+If intLeft > 0 Then
+    intLeft = intLeft - 1
+    picBox(intPlayerTurnTemp).Left = picBox(intPlayerTurnTemp).Left - 640
+End If
+If intRight > 0 Then
+    intRight = intRight - 1
+    picBox(intPlayerTurnTemp).Left = picBox(intPlayerTurnTemp).Left + 640
+End If
+If intUp = 0 And intDown = 0 And intLeft = 0 And intRight = 0 Then
+    picBox(intPlayerTurnTemp).Cls
+    If intPicBoxNo(intPlayerTurnTemp) < 10 Then
+        picBox(intPlayerTurnTemp).Print " " & intPicBoxNo(intPlayerTurnTemp)
+    Else
+        picBox(intPlayerTurnTemp).Print "" & intPicBoxNo(intPlayerTurnTemp)
+    End If
+    If intPlayerTurn = 1 Then
+        cmdDiceStart.Enabled = True
+        cmdDiceStart.SetFocus
+    End If
+    Timer4.Enabled = False
+End If
+End Sub
+
+Private Sub Timer5_Timer()
+Dim intRand As Integer
+intRand = Int(Rnd * 3000) + 500
+Timer5.Interval = intRand
+If cmdDiceStart.Enabled = True And cmdDiceStart.Visible = True Then
+    cmdDiceStart_Click
+Else
+    If cmdStopDice.Enabled = True And cmdStopDice.Visible = True Then
+    cmdStopDice_Click
+    End If
+End If
+If picBox(intPlayerTurnTemp) = 100 Then
+Timer5.Enabled = False
+End If
+End Sub
+
+Private Sub Timer6_Timer()
+Winsock1.SendData "NMDATA" & strPlayerName(1)
+Timer6.Enabled = False
+End Sub
+
+Private Sub Winsock1_ConnectionRequest(ByVal requestID As Long)
+Winsock1.Close
+Winsock1.Accept requestID
+Winsock1.SendData "CONTON"
+Form5.Hide
+Form1.Show
+lstMessages.AddItem "Client connected"
+Timer6.Enabled = True
+End Sub
+
+Private Sub Winsock1_DataArrival(ByVal bytesTotal As Long)
+Winsock1.GetData strData
+Select Case Left(strData, 6)
+Case "GSTART"
+If MsgBox("Would you like to play Snake and Ladders with " & strPlayerName(2), vbYesNo, "Multiplayer Game") = vbYes Then
+    Winsock1.SendData "GREADY"
+    intPlayerTurn = 2
+    GameStart
+    cmdDiceStart.Visible = True
+Else
+    Winsock1.SendData "NOTRED"
+End If
+Case "GREADY"
+    MsgBox "Game Started Your Turn"
+    intPlayerTurn = 1
+    GameStart
+    cmdDiceStart.Enabled = True
+    cmdDiceStart.Visible = True
+    cmdDiceStart.SetFocus
+Case "NOTRED"
+    MsgBox "Game Invitation Refused"
+Case "INTRAN"
+    intRand = Mid(strData, 7, 1)
+    cmdStopDice_Click
+Case "CONTON"
+    Form5.Hide
+    Form1.Show
+    lstMessages.AddItem "You are connected"
+    Winsock1.SendData "NMDATA" & strPlayerName(1)
+Case "NMDATA"
+    strPlayerName(2) = Mid(strData, 7, Len(strData))
+Case Else
+lstMessages.AddItem strData
+End Select
+End Sub
+   
+Private Sub Winsock1_Error(ByVal Number As Integer, Description As String, ByVal Scode As Long, ByVal Source As String, ByVal HelpFile As String, ByVal HelpContext As Long, CancelDisplay As Boolean)
+Winsock1.Close
+MsgBox Description, vbCritical, "Error"
+End Sub
+
+
+Public Sub GameStart()
+Dim intCount As Integer
+For intCount = 1 To intTotPlayers
+    'strPlayerName(intCount) = Form3.txtPlayer(intCount)
+    picBox(intCount).Visible = True
+    picBox(intCount).Left = picBox(intCount).Left - 640
+    lblPlayerName(intCount).Visible = True
+    lblPlayerName(intCount).Caption = strPlayerName(intCount)
+    cmdPlayerColor(intCount).Visible = True
+Next intCount
+cmdStartGame.Visible = False
+intTemp = 1
+intDiceTurn = 1
+lblPlayerTurn.Caption = strPlayerName(intPlayerTurn) & "'s Turn"
+Timer3.Enabled = True
+End Sub
